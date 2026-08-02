@@ -218,3 +218,25 @@ export interface WsEventPayload {
   job: BuildJob;
   server: ServerHealth;
 }
+
+export interface PluginWorldMapCell {
+  x: number;
+  z: number;
+  y: number;
+  block: string;
+}
+
+export interface PluginWorldMapSnapshot {
+  world: string;
+  centerX: number;
+  centerZ: number;
+  radius: number;
+  step: number;
+  skippedUnloadedCells: number;
+  capturedAt: string;
+  cells: PluginWorldMapCell[];
+}
+
+export type WorldMapResponse =
+  | { mode: "bluemap"; url: string }
+  | { mode: "plugin"; snapshot: PluginWorldMapSnapshot };

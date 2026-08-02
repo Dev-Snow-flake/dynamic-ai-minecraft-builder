@@ -6,7 +6,7 @@ Production: `https://map.work-plus.kr`
 
 ## Final status
 
-The web control plane, Gateway, Paper Bridge, Caddy route, BlueMap route, and packaged Minecraft textures are deployed and healthy. The production plugin remains fail-closed: `allow-world-writes: false` and `allowed-regions: []`.
+The web control plane, multi-tenant Gateway, Paper Bridge, Caddy route, BlueMap route, plugin surface-map route, and packaged Minecraft textures are deployed and healthy. Public enrollment is enabled without distributing a global secret. The production plugin remains fail-closed: `allow-world-writes: false` and `allowed-regions: []`.
 
 ## Resolved findings
 
@@ -26,6 +26,10 @@ The web control plane, Gateway, Paper Bridge, Caddy route, BlueMap route, and pa
 - Pauses before the next block write when the Gateway disconnects or an operator requests a pause.
 - Added encrypted-at-rest OpenAI key storage using AES-256-GCM. Plaintext keys are never returned to the browser or stored in browser storage.
 - Added login and AI request rate limits, trusted-proxy-aware client addressing, origin checks, bounded JSON bodies, and bounded WebSocket payloads.
+- Added per-installation bridge tokens, 30-minute one-use claim codes, scrypt administrator password hashes, and atomic mode-0600 tenant registry persistence. Claim codes, bridge tokens, and passwords are not stored in plaintext.
+- Scoped browser sessions, API routes, event sockets, build state, map caches, Paper commands, and encrypted OpenAI key files to one authenticated `serverId`.
+- Added a plugin-only actual-world map path that samples only already-loaded chunks, never force-loads a chunk, and validates the returned world/cell count/coordinates/block IDs at the Gateway boundary.
+- Rejected malformed and obviously low-diversity client bridge tokens; the official plugin creates 256-bit tokens with `SecureRandom` and stores them owner-only where POSIX permissions are available.
 
 ### Medium and operational
 
@@ -40,7 +44,7 @@ The web control plane, Gateway, Paper Bridge, Caddy route, BlueMap route, and pa
 ## Verification evidence
 
 - TypeScript typecheck: pass.
-- Automated tests: 12 pass, 0 fail.
+- Automated tests: 14 pass, 0 fail (12 Gateway/security tests and 2 blueprint-schema tests).
 - Production web build: pass.
 - Paper plugin Gradle/Java 21 build: pass with no deprecation warning.
 - Production login: Admin session issued successfully.
@@ -51,13 +55,17 @@ The web control plane, Gateway, Paper Bridge, Caddy route, BlueMap route, and pa
 - Caddy configuration: valid.
 - Main site, BlueMap, manifest, and a real block texture: HTTP 200.
 - BlueMap visual QA: 375/768/1280px, no browser console warnings or errors.
+- Public production enrollment: HTTP 201; authenticated retry preserved the server ID and rotated the one-use claim code; malformed and low-diversity tokens returned HTTP 400.
+- Tenant isolation tests: cross-server HTTP paths return 404, cross-server bridge tokens return 401, and encrypted OpenAI key files remain separate.
+- Hosted plugin map integration: a bounded real-block snapshot passed through the authenticated bridge and server-scoped `/api/v1/world-map` endpoint.
+- Enrollment/login browser QA: deployed forms render correctly, client-side password confirmation blocks mismatches, and browser console logs contain no errors.
+- GitHub Draft PR #7 CI: Node and Paper plugin jobs pass.
 
 ## Intentional safety gates and remaining decisions
 
 1. **No live block-write smoke test was run.** The owner has not selected a disposable cuboid. Enabling writes or choosing coordinates by assumption could damage the world, so production remains locked.
-2. **The hosted Gateway is single-server.** The released JAR can be used with a self-hosted Gateway, but letting arbitrary servers use one central `map.work-plus.kr` instance safely requires per-server enrollment, unique tokens, tenant isolation, and server selection in the UI. A shared global plugin secret will not be published.
-3. **The existing Paper process runs as root.** The new Gateway does not. Migrating the pre-existing Paper installation to a dedicated OS account affects its worlds, plugins, tmux workflow, and file ownership and should be scheduled as a separate maintenance operation.
-4. BlueMap's own route retains the inline/eval CSP allowances required by its current client bundle. Those allowances are isolated to `/live-map/`; the control center uses a stricter CSP.
+2. **The existing Paper process runs as root.** The new Gateway does not. Migrating the pre-existing Paper installation to a dedicated OS account affects its worlds, plugins, tmux workflow, and file ownership and should be scheduled as a separate maintenance operation.
+3. BlueMap's own route retains the inline/eval CSP allowances required by its current client bundle. Those allowances are isolated to `/live-map/`; the control center uses a stricter CSP.
 
 ## Secret handling
 

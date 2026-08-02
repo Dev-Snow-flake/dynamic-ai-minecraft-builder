@@ -46,8 +46,10 @@ import type {
   BuildState,
   ServerHealth,
   Severity,
+  WorldMapResponse,
 } from "@dynamic-ai/protocol";
 import { useControlCenter } from "./hooks/useControlCenter";
+import { request } from "./lib/api";
 import type { VoxelLayer } from "./components/VoxelPreview";
 
 const VoxelPreview = lazy(() => import("./components/VoxelPreview").then((module) => ({ default: module.VoxelPreview })));
@@ -442,16 +444,69 @@ function Overview({ job, server, events, onOpenJob }: { job: BuildJob; server: S
 }
 
 function WorldScreen({ job, server }: { job: BuildJob; server: ServerHealth }) {
+  const [worldMap, setWorldMap] = useState<WorldMapResponse | null>(null);
+  const [mapError, setMapError] = useState<string | null>(null);
+  const loadMap = () => {
+    setMapError(null);
+    void request<WorldMapResponse>("/api/v1/world-map")
+      .then(setWorldMap)
+      .catch((error) => setMapError(error instanceof Error ? error.message : "월드 지도를 불러오지 못했습니다."));
+  };
+  useEffect(loadMap, []);
+
+  if (!worldMap) {
+    return (
+      <main className="page secondary-page">
+        <section className="page-heading"><div><span className="eyebrow">Live world</span><h1>실제 월드 지도</h1><p>Paper 서버에서 현재 월드 데이터를 읽고 있습니다.</p></div></section>
+        <section className="panel world-map-panel"><div className="map-loading">{mapError ? <><TriangleAlert size={18} />{mapError}<button className="secondary-button" onClick={loadMap}><RefreshCw size={15} />다시 시도</button></> : <><RefreshCw className="spin" size={18} />월드 지도 동기화 중…</>}</div></section>
+      </main>
+    );
+  }
+
+  if (worldMap.mode === "plugin") {
+    const map = worldMap.snapshot;
+    const columns = Math.floor((map.radius * 2) / map.step) + 1;
+    const startX = map.centerX - map.radius;
+    const startZ = map.centerZ - map.radius;
+    return (
+      <main className="page secondary-page">
+        <section className="page-heading"><div><span className="eyebrow">Paper surface snapshot</span><h1>실제 월드 지도</h1><p>플러그인이 로드된 청크의 실제 최상단 블록을 안전하게 읽어 표시합니다.</p></div><div className="map-coordinate"><MapPin size={16} /> {map.world} · {server.connected ? "LIVE" : "OFFLINE"}</div></section>
+        <section className="panel world-map-panel">
+          <div className="map-toolbar"><div><span className="map-live-dot" />{map.world} · 실제 블록 {map.cells.length.toLocaleString()}개</div><button className="map-open-link" onClick={loadMap}><RefreshCw size={14} />새로고침</button></div>
+          <div className="plugin-world-map" role="img" aria-label={`${map.world} 실제 블록 표면 지도`}>
+            <svg viewBox={`0 0 ${columns} ${columns}`} preserveAspectRatio="xMidYMid meet">
+              <rect width={columns} height={columns} fill="#111713" />
+              {map.cells.map((cell) => <rect key={`${cell.x}:${cell.z}`} x={(cell.x - startX) / map.step} y={(cell.z - startZ) / map.step} width="1.04" height="1.04" fill={blockMapColor(cell.block)}><title>{cell.block} · {cell.x}, {cell.y}, {cell.z}</title></rect>)}
+              <circle cx={(map.centerX - startX) / map.step + 0.5} cy={(map.centerZ - startZ) / map.step + 0.5} r="1.4" fill="none" stroke="#f5c26b" strokeWidth="0.5" />
+            </svg>
+          </div>
+          <div className="map-footer"><span><i className="legend-build" /> 현재 청사진 v{job.blueprint.planVersion}</span><span><i className="legend-player" /> 온라인 {server.playersOnline}명</span><small>중심 {map.centerX}, {map.centerZ} · 간격 {map.step}블록 · 미로드 셀 {map.skippedUnloadedCells.toLocaleString()}개 제외</small></div>
+        </section>
+      </main>
+    );
+  }
   return (
     <main className="page secondary-page">
       <section className="page-heading"><div><span className="eyebrow">BlueMap live world</span><h1>실제 월드 지도</h1><p>Paper 서버의 실제 월드 타일을 BlueMap 3D로 표시합니다.</p></div><div className="map-coordinate"><MapPin size={16} /> {server.world} · {server.connected ? "LIVE" : "LAST RENDER"}</div></section>
       <section className="panel world-map-panel">
-        <div className="map-toolbar"><div><span className="map-live-dot" />{server.world} · BlueMap 3D</div><a className="map-open-link" href="/live-map/" target="_blank" rel="noreferrer">전체 화면으로 열기 <ChevronRight size={14} /></a></div>
-        <div className="world-map-frame"><iframe src="/live-map/" title={`${server.world} 실제 BlueMap 월드 지도`} loading="eager" allowFullScreen /></div>
+        <div className="map-toolbar"><div><span className="map-live-dot" />{server.world} · BlueMap 3D</div><a className="map-open-link" href={worldMap.url} target="_blank" rel="noreferrer">전체 화면으로 열기 <ChevronRight size={14} /></a></div>
+        <div className="world-map-frame"><iframe src={worldMap.url} title={`${server.world} 실제 BlueMap 월드 지도`} loading="eager" allowFullScreen /></div>
         <div className="map-footer"><span><i className="legend-build" /> 현재 청사진 v{job.blueprint.planVersion}</span><span><i className="legend-player" /> 온라인 {server.playersOnline}명</span><small>서버 월드 데이터로 렌더링 · 지도 갱신에는 잠시 시간이 걸릴 수 있습니다.</small></div>
       </section>
     </main>
   );
+}
+
+function blockMapColor(block: string) {
+  if (/water|ice/.test(block)) return "#3f76a8";
+  if (/grass|moss|leaves|vine/.test(block)) return "#668a4d";
+  if (/sand|sandstone|end_stone/.test(block)) return "#c6b77a";
+  if (/snow|quartz|white_/.test(block)) return "#d8ddd6";
+  if (/log|wood|planks|dirt|mud/.test(block)) return "#77583f";
+  if (/lava|magma|fire/.test(block)) return "#d26a35";
+  if (/copper/.test(block)) return "#659681";
+  if (/stone|deepslate|ore|brick|concrete/.test(block)) return "#777d79";
+  return "#9aa18d";
 }
 
 function AgentsScreen({
@@ -607,8 +662,9 @@ function SettingsScreen({ status, busy, canManageKey, onSaveKey, onRemoveKey }: 
   );
 }
 
-function LoginScreen({ busy, onLogin }: { busy: boolean; onLogin: (password: string) => Promise<void> }) {
+function LoginScreen({ busy, onLogin }: { busy: boolean; onLogin: (password: string, serverId?: string) => Promise<void> }) {
   const [password, setPassword] = useState("");
+  const [serverId, setServerId] = useState("");
   const [loginError, setLoginError] = useState<string | null>(null);
   return (
     <main className="login-screen">
@@ -617,10 +673,50 @@ function LoginScreen({ busy, onLogin }: { busy: boolean; onLogin: (password: str
         <span className="eyebrow">Protected control plane</span>
         <h1>Quarry 관리자 로그인</h1>
         <p>월드 제어와 API 키 설정은 인증된 관리자 세션에서만 사용할 수 있습니다.</p>
-        <form onSubmit={(event) => { event.preventDefault(); setLoginError(null); void onLogin(password).catch((error) => setLoginError(error instanceof Error ? error.message : "로그인에 실패했습니다.")); }}>
+        <form onSubmit={(event) => { event.preventDefault(); setLoginError(null); void onLogin(password, serverId).catch((error) => setLoginError(error instanceof Error ? error.message : "로그인에 실패했습니다.")); }}>
+          <label><span>서버 ID <small>기존 운영 서버는 비워두세요</small></span><input type="text" autoComplete="username" value={serverId} onChange={(event) => setServerId(event.target.value)} placeholder="srv_…" maxLength={64} spellCheck={false} /></label>
           <label><span>관리자 비밀번호</span><input autoFocus type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} maxLength={512} /></label>
           {loginError && <div className="architect-error" role="alert"><TriangleAlert size={15} />{loginError}</div>}
           <button className="primary-button" type="submit" disabled={busy || !password}>{busy ? <RefreshCw className="spin" size={16} /> : <KeyRound size={16} />}로그인</button>
+        </form>
+      </section>
+    </main>
+  );
+}
+
+function ClaimScreen({ busy, onClaim }: { busy: boolean; onClaim: (input: { serverId: string; claimCode: string; password: string; displayName: string }) => Promise<void> }) {
+  const suggestedServerId = new URLSearchParams(window.location.search).get("serverId") ?? "";
+  const [serverId, setServerId] = useState(suggestedServerId);
+  const [claimCode, setClaimCode] = useState("");
+  const [displayName, setDisplayName] = useState("Minecraft Server");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [claimError, setClaimError] = useState<string | null>(null);
+  const submit = () => {
+    setClaimError(null);
+    if (password !== confirmPassword) {
+      setClaimError("비밀번호 확인이 일치하지 않습니다.");
+      return;
+    }
+    void onClaim({ serverId: serverId.trim(), claimCode: claimCode.trim(), password, displayName: displayName.trim() })
+      .then(() => window.history.replaceState({}, "", "/"))
+      .catch((error) => setClaimError(error instanceof Error ? error.message : "서버 소유권 등록에 실패했습니다."));
+  };
+  return (
+    <main className="login-screen">
+      <section className="login-card claim-card">
+        <span className="boot-mark"><Server size={26} /></span>
+        <span className="eyebrow">Secure server enrollment</span>
+        <h1>내 Minecraft 서버 연결</h1>
+        <p>Paper 콘솔에 표시된 서버 ID와 일회용 소유권 코드를 입력하세요. API 키와 작업 기록은 이 서버에만 분리 저장됩니다.</p>
+        <form onSubmit={(event) => { event.preventDefault(); submit(); }}>
+          <label><span>서버 ID</span><input autoFocus value={serverId} onChange={(event) => setServerId(event.target.value)} placeholder="srv_…" maxLength={64} required spellCheck={false} /></label>
+          <label><span>소유권 코드</span><input value={claimCode} onChange={(event) => setClaimCode(event.target.value.toUpperCase())} placeholder="XXXXX-XXXXX-XXXXX-XXXXX" maxLength={32} required spellCheck={false} /></label>
+          <label><span>표시 이름</span><input value={displayName} onChange={(event) => setDisplayName(event.target.value)} maxLength={80} required /></label>
+          <label><span>관리자 비밀번호 <small>16자 이상</small></span><input type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} minLength={16} maxLength={512} required /></label>
+          <label><span>비밀번호 확인</span><input type="password" autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} minLength={16} maxLength={512} required /></label>
+          {claimError && <div className="architect-error" role="alert"><TriangleAlert size={15} />{claimError}</div>}
+          <button className="primary-button" type="submit" disabled={busy || !serverId || !claimCode || password.length < 16}>{busy ? <RefreshCw className="spin" size={16} /> : <ShieldCheck size={16} />}서버 소유권 등록</button>
         </form>
       </section>
     </main>
@@ -699,6 +795,9 @@ export default function App() {
   }
 
   if (!controlCenter.session) {
+    if (window.location.pathname === "/claim") {
+      return <ClaimScreen busy={controlCenter.busyAction === "claim"} onClaim={controlCenter.claim} />;
+    }
     return <LoginScreen busy={controlCenter.busyAction === "login"} onLogin={controlCenter.login} />;
   }
 

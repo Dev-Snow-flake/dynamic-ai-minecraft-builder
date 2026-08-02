@@ -1,10 +1,18 @@
 gateway:
-  uri: "ws://127.0.0.1:8787/bridge"
-  # 운영 환경에서는 이 값을 파일에 저장하지 말고 DYNAMIC_AI_BRIDGE_SECRET 환경 변수를 사용하세요.
+  uri: "wss://map.work-plus.kr/bridge"
+  enrollment-uri: "https://map.work-plus.kr/api/v1/public/servers/enroll"
+  auto-enroll: true
+  # 수동/사설 배포에서만 사용하세요. 공개 서비스는 빈 값 그대로 두면 서버별 자격 증명을 자동 발급합니다.
   shared-secret: ""
   reconnect-delay-ticks: 100
 
-server-id: "server_main"
+server-id: ""
+display-name: "Minecraft Server"
+
+map:
+  # 실제로 로드된 청크만 읽으며, 청크를 강제로 불러오지 않습니다.
+  radius: 96
+  step: 4
 
 policy:
   # 안전을 위해 새 설치에서는 실제 월드 쓰기가 꺼져 있습니다.

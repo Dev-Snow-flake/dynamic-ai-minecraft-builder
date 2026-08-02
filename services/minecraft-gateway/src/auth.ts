@@ -11,6 +11,8 @@ export interface AuthSession {
   authenticated: true;
   actor: string;
   role: AuthRole;
+  serverId: string;
+  hostedTenant: boolean;
   csrfToken: string;
   expiresAt: string;
 }
@@ -49,12 +51,16 @@ export class SessionAuth {
     return this.passwordHashes.length > 0;
   }
 
-  login(password: unknown): StoredSession | null {
+  login(password: unknown, serverId = "server_main"): StoredSession | null {
     if (this.passwordHashes.length === 0 || typeof password !== "string" || password.length > 512) return null;
     const supplied = hash(password);
     const credential = this.passwordHashes.find((candidate) => timingSafeEqual(candidate.hash, supplied));
     if (!credential) return null;
 
+    return this.createSession(credential.role, `${credential.role} 사용자`, serverId, false);
+  }
+
+  createSession(role: AuthRole, actor: string, serverId: string, hostedTenant: boolean): StoredSession {
     this.purge();
     if (this.sessions.size >= MAX_SESSIONS) {
       const oldest = [...this.sessions.values()].sort((left, right) => left.expiresAtMs - right.expiresAtMs)[0];
@@ -66,8 +72,10 @@ export class SessionAuth {
     const session: StoredSession = {
       id,
       authenticated: true,
-      actor: `${credential.role} 사용자`,
-      role: credential.role,
+      actor,
+      role,
+      serverId,
+      hostedTenant,
       csrfToken: randomBytes(24).toString("base64url"),
       expiresAtMs,
       expiresAt: new Date(expiresAtMs).toISOString(),
@@ -111,8 +119,8 @@ export class SessionAuth {
   }
 
   publicSession(session: StoredSession): AuthSession {
-    const { authenticated, actor, role, csrfToken, expiresAt } = session;
-    return { authenticated, actor, role, csrfToken, expiresAt };
+    const { authenticated, actor, role, serverId, hostedTenant, csrfToken, expiresAt } = session;
+    return { authenticated, actor, role, serverId, hostedTenant, csrfToken, expiresAt };
   }
 
   requireSession = (request: Request, response: Response, next: NextFunction) => {

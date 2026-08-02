@@ -82,6 +82,18 @@ fi
 if ! grep -q '^CONTROL_CENTER_STATE_PATH=' /etc/dynamic-ai/gateway.env; then
   printf 'CONTROL_CENTER_STATE_PATH=/var/lib/dynamic-ai/control-center-state.json\n' >> /etc/dynamic-ai/gateway.env
 fi
+if ! grep -q '^ALLOW_PUBLIC_SERVER_ENROLLMENT=' /etc/dynamic-ai/gateway.env; then
+  printf 'ALLOW_PUBLIC_SERVER_ENROLLMENT=true\n' >> /etc/dynamic-ai/gateway.env
+fi
+if ! grep -q '^TENANT_REGISTRY_PATH=' /etc/dynamic-ai/gateway.env; then
+  printf 'TENANT_REGISTRY_PATH=/var/lib/dynamic-ai/tenant-registry.json\n' >> /etc/dynamic-ai/gateway.env
+fi
+if ! grep -q '^TENANT_STATE_DIRECTORY=' /etc/dynamic-ai/gateway.env; then
+  printf 'TENANT_STATE_DIRECTORY=/var/lib/dynamic-ai/servers\n' >> /etc/dynamic-ai/gateway.env
+fi
+if ! grep -q '^TENANT_KEY_DIRECTORY=' /etc/dynamic-ai/gateway.env; then
+  printf 'TENANT_KEY_DIRECTORY=/var/lib/dynamic-ai/keys\n' >> /etc/dynamic-ai/gateway.env
+fi
 chmod 0600 /etc/dynamic-ai/gateway.env
 install -d -o dynamic-ai -g dynamic-ai -m 0700 /var/lib/dynamic-ai
 
@@ -151,7 +163,8 @@ if [[ "$add_allow" -eq 1 || "$add_regions" -eq 1 ]]; then
   rm -f "$config_tmp"
 fi
 chmod 0600 "$plugin_dir/config.yml"
-install -m 0644 "$APP_DIR/plugins/paper-bridge/build/libs/dynamic-ai-paper-bridge-0.1.0.jar" /root/dev/plugins/DynamicAiBridge-0.1.0.jar
+rm -f /root/dev/plugins/DynamicAiBridge-0.1.0.jar
+install -m 0644 "$APP_DIR/plugins/paper-bridge/build/libs/dynamic-ai-paper-bridge-0.2.0.jar" /root/dev/plugins/DynamicAiBridge.jar
 
 for _ in {1..30}; do
   if systemctl is-active --quiet dynamic-ai-gateway.service && curl -fsS http://127.0.0.1:8787/health >/dev/null; then

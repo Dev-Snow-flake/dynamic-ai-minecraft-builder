@@ -1909,6 +1909,35 @@ p {
   background: #101510;
 }
 
+.plugin-world-map {
+  display: grid;
+  min-height: clamp(480px, 68vh, 820px);
+  place-items: center;
+  padding: 18px;
+  overflow: auto;
+  background: #101510;
+}
+
+.plugin-world-map svg {
+  display: block;
+  width: min(100%, 820px);
+  height: auto;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: var(--r-sm);
+  image-rendering: pixelated;
+  box-shadow: 0 22px 80px rgba(0, 0, 0, 0.34);
+}
+
+.map-loading {
+  display: flex;
+  min-height: 360px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--text-soft);
+  font-size: 12px;
+}
+
 .map-open-link {
   display: inline-flex;
   min-height: 44px;
@@ -1920,6 +1949,8 @@ p {
   color: var(--text-soft);
   font-size: 9px;
   text-decoration: none;
+  background: transparent;
+  cursor: pointer;
   transition: border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
 }
 
@@ -2629,6 +2660,8 @@ p {
 .login-card input:focus,
 .api-key-panel input:focus { border-color: var(--accent); outline: 3px solid color-mix(in srgb, var(--accent) 20%, transparent); }
 .login-card .primary-button { width: 100%; justify-content: center; }
+.login-card label small { margin-left: 5px; color: var(--text-muted); font-weight: 450; }
+.claim-card { width: min(100%, 520px); }
 
 .api-key-panel { margin-bottom: 16px; padding: 20px; }
 .api-key-panel > p { max-width: 760px; color: var(--text-soft); font-size: 12px; line-height: 1.65; }
