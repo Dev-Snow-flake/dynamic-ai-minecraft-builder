@@ -43,7 +43,7 @@ rm -f "$config_tmp"
 chmod 0600 "$plugin_config"
 
 systemctl restart dynamic-ai-gateway.service
-/tmp/restart-wild.sh
+"$(dirname "$0")/restart-wild.sh"
 
 for _ in {1..30}; do
   if curl -fsS http://127.0.0.1:8787/health >/dev/null && grep -q 'Bridge connected for server server_main' /root/dev/logs/latest.log; then
