@@ -15,17 +15,20 @@ export type OpenAiKeySource = "environment" | "encrypted-store" | "none";
 export class OpenAiKeyStore {
   private readonly filePath: string;
   private readonly encryptionKey: Buffer | null;
+  private readonly allowEnvironmentKey: boolean;
 
   constructor(
     filePath = process.env.OPENAI_KEY_STORE_PATH?.trim() || path.resolve("data", "openai-key.json"),
     encryptionSecret = process.env.OPENAI_KEY_ENCRYPTION_SECRET?.trim(),
+    allowEnvironmentKey = true,
   ) {
     this.filePath = path.resolve(filePath);
     this.encryptionKey = encryptionSecret ? createHash("sha256").update(encryptionSecret, "utf8").digest() : null;
+    this.allowEnvironmentKey = allowEnvironmentKey;
   }
 
   async read(): Promise<{ key: string | null; source: OpenAiKeySource }> {
-    const environmentKey = process.env.OPENAI_API_KEY?.trim();
+    const environmentKey = this.allowEnvironmentKey ? process.env.OPENAI_API_KEY?.trim() : undefined;
     if (environmentKey) return { key: environmentKey, source: "environment" };
     if (!this.encryptionKey) return { key: null, source: "none" };
 
@@ -46,8 +49,12 @@ export class OpenAiKeyStore {
     }
   }
 
+  environmentKey() {
+    return this.allowEnvironmentKey ? process.env.OPENAI_API_KEY?.trim() || null : null;
+  }
+
   async write(key: string) {
-    if (process.env.OPENAI_API_KEY?.trim()) {
+    if (this.allowEnvironmentKey && process.env.OPENAI_API_KEY?.trim()) {
       throw new OpenAiKeyStoreError("OPENAI_KEY_ENV_MANAGED", "환경변수로 설정된 키는 웹에서 덮어쓸 수 없습니다.", 409);
     }
     if (!this.encryptionKey) {
@@ -79,7 +86,7 @@ export class OpenAiKeyStore {
   }
 
   async clear() {
-    if (process.env.OPENAI_API_KEY?.trim()) {
+    if (this.allowEnvironmentKey && process.env.OPENAI_API_KEY?.trim()) {
       throw new OpenAiKeyStoreError("OPENAI_KEY_ENV_MANAGED", "환경변수로 설정된 키는 웹에서 삭제할 수 없습니다.", 409);
     }
     await unlink(this.filePath).catch((error: NodeJS.ErrnoException) => {

@@ -43,6 +43,11 @@ export interface BridgeExecutionStatus {
   totalBlocks?: number;
 }
 
+export interface StoreIdentity {
+  serverId: string;
+  name: string;
+}
+
 const copy = <T>(value: T): T => structuredClone(value);
 
 export class ControlCenterStore extends EventEmitter {
@@ -57,10 +62,22 @@ export class ControlCenterStore extends EventEmitter {
   private persistPromise: Promise<void> | null = null;
   private persistDirty = false;
   private readonly statePath: string | null;
+  private readonly expectedServerId: string;
 
-  constructor(statePath: string | null = process.env.CONTROL_CENTER_STATE_PATH?.trim() || path.resolve("data", "control-center-state.json")) {
+  constructor(
+    statePath: string | null = process.env.CONTROL_CENTER_STATE_PATH?.trim() || path.resolve("data", "control-center-state.json"),
+    identity?: StoreIdentity,
+  ) {
     super();
     this.statePath = statePath ? path.resolve(statePath) : null;
+    if (identity) {
+      const buildId = `build_${identity.serverId.slice(0, 48)}`;
+      this.server = { ...this.server, serverId: identity.serverId, name: identity.name };
+      this.job = { ...this.job, serverId: identity.serverId, buildId };
+      this.snapshot = { ...this.snapshot, buildId };
+      this.events = this.events.map((event) => ({ ...event, buildId }));
+    }
+    this.expectedServerId = this.server.serverId;
     this.loadPersistedState();
   }
 
@@ -75,6 +92,11 @@ export class ControlCenterStore extends EventEmitter {
 
   getServer() {
     return copy(this.server);
+  }
+
+  setServerName(name: string) {
+    this.server.name = name.slice(0, 80);
+    this.server.updatedAt = new Date().toISOString();
   }
 
   getJob() {
@@ -492,6 +514,7 @@ export class ControlCenterStore extends EventEmitter {
         executionPlan: BridgeExecutionPlan | null;
       };
       if (persisted.schemaVersion !== 1 || !persisted.job || !persisted.snapshot) throw new Error("unsupported state schema");
+      if (persisted.job.serverId !== this.expectedServerId) throw new Error("state belongs to a different server");
       this.job = persisted.job;
       this.events = persisted.events ?? [];
       this.audit = persisted.audit ?? [];

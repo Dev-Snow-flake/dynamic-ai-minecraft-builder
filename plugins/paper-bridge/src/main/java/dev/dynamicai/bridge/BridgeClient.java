@@ -50,6 +50,7 @@ final class BridgeClient implements WebSocket.Listener {
         httpClient.newWebSocketBuilder()
             .connectTimeout(Duration.ofSeconds(8))
             .header("Authorization", "Bearer " + secret)
+            .header("X-Dynamic-AI-Server-Id", serverId)
             .buildAsync(gatewayUri, this)
             .whenComplete((webSocket, error) -> {
                 if (error != null) {
@@ -136,6 +137,13 @@ final class BridgeClient implements WebSocket.Listener {
             plugin.getServer().getScheduler().runTask(plugin, () -> sendStatus(messageId));
             return;
         }
+        if ("world.get_map".equals(method)) {
+            JsonObject payload = root.has("payload") && root.get("payload").isJsonObject()
+                ? root.getAsJsonObject("payload")
+                : new JsonObject();
+            plugin.getServer().getScheduler().runTask(plugin, () -> sendWorldMap(messageId, payload));
+            return;
+        }
         if (method.startsWith("build.")) {
             JsonObject payload = root.has("payload") && root.get("payload").isJsonObject()
                 ? root.getAsJsonObject("payload")
@@ -164,6 +172,48 @@ final class BridgeClient implements WebSocket.Listener {
         JsonObject build = plugin.buildStatus();
         if (build != null) data.add("build", build);
         sendResponse(correlationId, true, "OK", "server status", data);
+    }
+
+    private void sendWorldMap(String correlationId, JsonObject request) {
+        String requestedWorld = request.has("world") ? request.get("world").getAsString() : "";
+        World world = requestedWorld.isBlank() ? plugin.getServer().getWorlds().getFirst() : plugin.getServer().getWorld(requestedWorld);
+        if (world == null) {
+            sendResponse(correlationId, false, "WORLD_NOT_FOUND", "world not found", new JsonObject());
+            return;
+        }
+        int configuredRadius = plugin.getConfig().getInt("map.radius", 96);
+        int configuredStep = plugin.getConfig().getInt("map.step", 4);
+        int radius = Math.max(16, Math.min(128, configuredRadius));
+        int step = Math.max(4, Math.min(8, configuredStep));
+        int centerX = world.getSpawnLocation().getBlockX();
+        int centerZ = world.getSpawnLocation().getBlockZ();
+        JsonArray cells = new JsonArray();
+        int skipped = 0;
+        for (int z = centerZ - radius; z <= centerZ + radius; z += step) {
+            for (int x = centerX - radius; x <= centerX + radius; x += step) {
+                if (!world.isChunkLoaded(x >> 4, z >> 4)) {
+                    skipped++;
+                    continue;
+                }
+                int y = world.getHighestBlockYAt(x, z);
+                JsonObject cell = new JsonObject();
+                cell.addProperty("x", x);
+                cell.addProperty("z", z);
+                cell.addProperty("y", y);
+                cell.addProperty("block", world.getBlockAt(x, y, z).getType().getKey().toString());
+                cells.add(cell);
+            }
+        }
+        JsonObject data = new JsonObject();
+        data.addProperty("world", world.getName());
+        data.addProperty("centerX", centerX);
+        data.addProperty("centerZ", centerZ);
+        data.addProperty("radius", radius);
+        data.addProperty("step", step);
+        data.addProperty("skippedUnloadedCells", skipped);
+        data.addProperty("capturedAt", Instant.now().toString());
+        data.add("cells", cells);
+        sendResponse(correlationId, true, "OK", "world map", data);
     }
 
     void sendResponse(String correlationId, boolean ok, String code, String message, JsonObject data) {

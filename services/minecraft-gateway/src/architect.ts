@@ -154,7 +154,7 @@ export class OpenAiArchitectService implements ArchitectService {
 
   constructor(keyStore = new OpenAiKeyStore()) {
     this.keyStore = keyStore;
-    const environmentKey = process.env.OPENAI_API_KEY?.trim();
+    const environmentKey = keyStore.environmentKey();
     if (environmentKey) {
       this.setClient(environmentKey, "environment");
       this.ready = Promise.resolve();

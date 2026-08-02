@@ -3,7 +3,7 @@ plugins {
 }
 
 group = "dev.dynamicai"
-version = "0.1.0"
+version = "0.2.0"
 val pluginVersion = version.toString()
 
 repositories {

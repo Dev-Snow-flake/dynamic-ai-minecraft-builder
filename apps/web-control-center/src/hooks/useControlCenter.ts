@@ -19,6 +19,8 @@ export interface AuthSession {
   authenticated: true;
   actor: string;
   role: "Viewer" | "Reviewer" | "Operator" | "Admin";
+  serverId: string;
+  hostedTenant: boolean;
   csrfToken: string;
   expiresAt: string;
 }
@@ -125,13 +127,30 @@ export function useControlCenter() {
     };
   }, [error, loading, session]);
 
-  const login = useCallback(async (password: string) => {
+  const login = useCallback(async (password: string, serverId = "") => {
     setBusyAction("login");
     setError(null);
     try {
       const authenticated = await request<AuthSession>("/api/v1/auth/login", {
         method: "POST",
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ password, ...(serverId.trim() ? { serverId: serverId.trim() } : {}) }),
+      });
+      setCsrfToken(authenticated.csrfToken);
+      setSession(authenticated);
+      setLoading(true);
+      await load();
+    } finally {
+      setBusyAction(null);
+    }
+  }, [load]);
+
+  const claim = useCallback(async (input: { serverId: string; claimCode: string; password: string; displayName: string }) => {
+    setBusyAction("claim");
+    setError(null);
+    try {
+      const authenticated = await request<AuthSession>("/api/v1/public/servers/claim", {
+        method: "POST",
+        body: JSON.stringify(input),
       });
       setCsrfToken(authenticated.csrfToken);
       setSession(authenticated);
@@ -252,6 +271,7 @@ export function useControlCenter() {
     busyAction,
     reload: load,
     login,
+    claim,
     logout,
     approve,
     control,
