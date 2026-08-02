@@ -4,7 +4,7 @@ import { mkdir, rename, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 const SERVER_ID = /^srv_[a-f0-9]{24}$/;
 const INSTALLATION_ID = /^[a-f0-9-]{36}$/i;
-const SECRET = /^[A-Za-z0-9_-]{43,128}$/;
+const SECRET = /^[A-Za-z0-9_-]{43}$/;
 const CLAIM_TTL_MS = 30 * 60 * 1_000;
 const CLAIM_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
@@ -62,7 +62,7 @@ export class TenantRegistry {
       const installationId = String(input.installationId ?? "").trim();
       const bridgeToken = String(input.bridgeToken ?? "").trim();
       const displayName = sanitizeDisplayName(input.displayName);
-      if (!INSTALLATION_ID.test(installationId) || !SECRET.test(bridgeToken)) {
+      if (!INSTALLATION_ID.test(installationId) || !isStrongSecret(bridgeToken)) {
         throw new TenantRegistryError("INVALID_ENROLLMENT", "설치 식별자 또는 브리지 자격 증명 형식이 올바르지 않습니다.", 400);
       }
 
@@ -141,7 +141,7 @@ export class TenantRegistry {
   }
 
   authenticateBridge(serverId: unknown, bridgeToken: unknown): TenantSummary | null {
-    if (typeof serverId !== "string" || typeof bridgeToken !== "string" || !SECRET.test(bridgeToken)) return null;
+    if (typeof serverId !== "string" || typeof bridgeToken !== "string" || !isStrongSecret(bridgeToken)) return null;
     const tenant = this.tenants.get(serverId.trim());
     if (!tenant || !safeEqual(tenant.bridgeTokenHash, digest(bridgeToken))) return null;
     return summarize(tenant);
@@ -214,6 +214,15 @@ function safeEqual(left: string, right: string) {
   const a = Buffer.from(left, "utf8");
   const b = Buffer.from(right, "utf8");
   return a.length === b.length && timingSafeEqual(a, b);
+}
+
+function isStrongSecret(value: string) {
+  if (!SECRET.test(value) || new Set(value).size < 16) return false;
+  try {
+    return Buffer.from(value, "base64url").length === 32;
+  } catch {
+    return false;
+  }
 }
 
 async function derivePassword(password: string, salt: Buffer) {

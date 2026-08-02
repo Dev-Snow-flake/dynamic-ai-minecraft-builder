@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { once } from "node:events";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -10,7 +11,7 @@ import { createGateway } from "../src/server.js";
 import { ControlCenterStore } from "../src/store.js";
 import { TenantRegistry } from "../src/tenant-registry.js";
 
-const token = (byte: number) => Buffer.alloc(32, byte).toString("base64url");
+const token = (byte: number) => createHash("sha256").update(`tenant-test-token-${byte}`).digest("base64url");
 
 test("tenant registry stores only hashes and makes claim codes one-use", async () => {
   const directory = await mkdtemp(path.join(tmpdir(), "dynamic-ai-tenants-"));
@@ -19,6 +20,10 @@ test("tenant registry stores only hashes and makes claim codes one-use", async (
   const bridgeToken = token(7);
   const password = "tenant-password-which-is-long";
   try {
+    await assert.rejects(
+      registry.enroll({ installationId: "00000000-0000-4000-8000-000000000000", bridgeToken: "A".repeat(43) }),
+      (error: { code?: string }) => error.code === "INVALID_ENROLLMENT",
+    );
     const enrolled = await registry.enroll({
       installationId: "11111111-1111-4111-8111-111111111111",
       bridgeToken,
