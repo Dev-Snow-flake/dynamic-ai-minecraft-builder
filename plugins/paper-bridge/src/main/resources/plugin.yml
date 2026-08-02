@@ -1,0 +1,8 @@
+name: DynamicAiBridge
+version: ${version}
+main: dev.dynamicai.bridge.DynamicAiBridgePlugin
+description: Safe outbound bridge between Paper and the Dynamic AI Gateway
+api-version: '1.21'
+author: Dynamic AI
+libraries:
+  - com.google.code.gson:gson:2.13.2

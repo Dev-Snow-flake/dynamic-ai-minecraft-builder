@@ -1,0 +1,32 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: dynamic_ai
+      POSTGRES_USER: dynamic_ai
+      POSTGRES_PASSWORD: dynamic_ai
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - dynamic_ai_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dynamic_ai"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: dynamic_ai
+      MINIO_ROOT_PASSWORD: dynamic_ai_local_only
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - dynamic_ai_objects:/data
+
+volumes:
+  dynamic_ai_pg:
+  dynamic_ai_objects:

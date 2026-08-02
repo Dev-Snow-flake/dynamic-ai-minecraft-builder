@@ -1,0 +1,28 @@
+{
+  "name": "dynamic-ai-minecraft-builder",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "services/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "prepare:minecraft-assets": "node scripts/prepare-minecraft-assets.mjs",
+    "predev": "npm run prepare:minecraft-assets",
+    "dev": "concurrently -k -n gateway,web -c green,cyan \"npm run dev -w @dynamic-ai/gateway\" \"npm run dev -w @dynamic-ai/web-control-center\"",
+    "prebuild": "npm run prepare:minecraft-assets",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "start": "npm run start -w @dynamic-ai/gateway"
+  },
+  "devDependencies": {
+    "concurrently": "10.0.4",
+    "typescript": "7.0.2"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

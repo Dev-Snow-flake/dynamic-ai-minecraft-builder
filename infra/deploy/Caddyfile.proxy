@@ -1,0 +1,111 @@
+{
+	servers {
+		trusted_proxies static 103.21.244.0/22 103.22.200.0/22 103.31.4.0/22 104.16.0.0/13 104.24.0.0/14 108.162.192.0/18 131.0.72.0/22 141.101.64.0/18 162.158.0.0/15 172.64.0.0/13 173.245.48.0/20 188.114.96.0/20 190.93.240.0/20 197.234.240.0/22 198.41.128.0/17 2400:cb00::/32 2606:4700::/32 2803:f800::/32 2405:b500::/32 2405:8100::/32 2a06:98c0::/29 2c0f:f248::/32
+		trusted_proxies_strict
+		client_ip_headers CF-Connecting-IP X-Forwarded-For
+	}
+}
+
+map.work-plus.kr {
+	encode zstd gzip
+
+	handle_path /live-map/* {
+		reverse_proxy 10.50.0.2:8100
+
+		header {
+			Strict-Transport-Security "max-age=31536000; includeSubDomains"
+			X-Content-Type-Options "nosniff"
+			X-Frame-Options "SAMEORIGIN"
+			Referrer-Policy "no-referrer"
+			Content-Security-Policy "default-src 'self' data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' ws: wss:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'self'"
+			Permissions-Policy "camera=(), microphone=(), geolocation=()"
+			-Server
+		}
+	}
+
+	handle {
+		reverse_proxy 10.50.0.2:8787 {
+			health_uri /health
+			health_interval 30s
+			health_timeout 3s
+		}
+
+		header {
+			Strict-Transport-Security "max-age=31536000; includeSubDomains"
+			X-Content-Type-Options "nosniff"
+			Referrer-Policy "no-referrer"
+			Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' wss:; frame-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+			Permissions-Policy "camera=(), microphone=(), geolocation=()"
+			-Server
+		}
+	}
+
+	log {
+		format json
+	}
+}
+
+work-plus.kr, 141-11-195-102.sslip.io {
+	encode zstd gzip
+
+	@mutable_web_files path / /index.html /flutter_bootstrap.js /flutter_service_worker.js /main.dart.js /manifest.json /version.json /childrenpolicy /childrenpolicy/* /privacy /privacy/*
+	header @mutable_web_files {
+		Cache-Control "no-cache, must-revalidate"
+		Cloudflare-CDN-Cache-Control "no-store"
+	}
+
+	redir /childrenpolicy /childrenpolicy/ 308
+	redir /privacy /privacy/ 308
+
+	handle /api/* {
+		reverse_proxy 127.0.0.1:8080
+	}
+
+	handle /healthz {
+		reverse_proxy 127.0.0.1:8080
+	}
+
+	handle_path /childrenpolicy/* {
+		root * /var/www/workplus/current/childrenpolicy
+		file_server
+	}
+
+	handle_path /privacy/* {
+		root * /var/www/workplus/current/privacy
+		file_server
+	}
+
+	# Flutter runtime assets must return a real 404 when missing. Returning the
+	# SPA shell here makes Flutter try to parse HTML as a JSON font manifest.
+	@flutter_assets path /assets/* /canvaskit/* /icons/* /favicon.png
+	handle @flutter_assets {
+		header {
+			Cache-Control "no-cache, must-revalidate"
+			Cloudflare-CDN-Cache-Control "no-store"
+		}
+		root * /var/www/workplus/current
+		file_server
+	}
+
+	handle {
+		root * /var/www/workplus/current
+		try_files {path} /index.html
+		file_server
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://accounts.google.com; style-src 'self' 'unsafe-inline' https://accounts.google.com; img-src 'self' data: blob:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://accounts.google.com https://oauth2.googleapis.com https://fonts.gstatic.com; frame-src https://accounts.google.com; worker-src 'self' blob:; manifest-src 'self'; base-uri 'self'; form-action 'self' https://accounts.google.com; object-src 'none'; frame-ancestors 'none'"
+		Cross-Origin-Opener-Policy "same-origin-allow-popups"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		X-Permitted-Cross-Domain-Policies "none"
+		-Server
+	}
+
+	log {
+		format json
+	}
+}

@@ -1,0 +1,37 @@
+[Unit]
+Description=Dynamic AI Minecraft Gateway and Web Control Center
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=dynamic-ai
+Group=dynamic-ai
+WorkingDirectory=/opt/dynamic-ai
+EnvironmentFile=/etc/dynamic-ai/gateway.env
+Environment=NODE_ENV=production
+ExecStart=/opt/node-v24.16.0-linux-x64/bin/node --import tsx services/minecraft-gateway/src/index.ts
+Restart=always
+RestartSec=3
+TimeoutStopSec=20
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/dynamic-ai
+StateDirectory=dynamic-ai
+StateDirectoryMode=0700
+UMask=0077
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ProtectClock=true
+RestrictSUIDSGID=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

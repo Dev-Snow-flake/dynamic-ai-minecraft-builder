@@ -1,0 +1,30 @@
+gateway:
+  uri: "ws://127.0.0.1:8787/bridge"
+  # 운영 환경에서는 이 값을 파일에 저장하지 말고 DYNAMIC_AI_BRIDGE_SECRET 환경 변수를 사용하세요.
+  shared-secret: ""
+  reconnect-delay-ticks: 100
+
+server-id: "server_main"
+
+policy:
+  # 안전을 위해 새 설치에서는 실제 월드 쓰기가 꺼져 있습니다.
+  # 아래 allowed-regions를 서버에 맞게 수정한 뒤 true로 바꾸세요.
+  allow-world-writes: false
+  allowed-worlds:
+    - "world"
+  allowed-regions: []
+  # 예시:
+  # allowed-regions:
+  #   - world: "world"
+  #     min: { x: -128, y: -64, z: -128 }
+  #     max-exclusive: { x: 128, y: 320, z: 128 }
+  allowed-blocks:
+    - "minecraft:spruce_planks"
+    - "minecraft:stone_bricks"
+    - "minecraft:glass"
+    - "minecraft:oxidized_copper"
+  minimum-tps: 18.0
+  maximum-mspt: 40.0
+  maximum-total-blocks: 12000
+  maximum-batch-blocks: 250
+  player-exclusion-radius: 24

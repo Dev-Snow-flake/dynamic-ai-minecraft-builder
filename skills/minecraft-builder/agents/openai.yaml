@@ -1,0 +1,4 @@
+interface:
+  display_name: "Minecraft Builder"
+  short_description: "Paper 월드 조사, 청사진 승인, 안전 시공과 롤백"
+  default_prompt: "대상 월드를 먼저 조사하고 정책을 통과한 버전형 청사진을 게시한 뒤 사람 승인을 기다리세요."
