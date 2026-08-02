@@ -37,7 +37,7 @@ jobs:
           gradle-version: "9.6.1"
           cache-provider: basic
       - run: gradle build --no-daemon --warning-mode all
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: DynamicAiBridge
           path: plugins/paper-bridge/build/libs/*.jar
