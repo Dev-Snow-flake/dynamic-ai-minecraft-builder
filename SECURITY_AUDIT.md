@@ -1,6 +1,7 @@
 # Security and production audit
 
-Date: 2026-08-02  
+Date: 2026-08-02
+
 Production: `https://map.work-plus.kr`
 
 ## Final status

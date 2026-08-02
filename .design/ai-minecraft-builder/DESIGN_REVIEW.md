@@ -1,7 +1,9 @@
 # Design Review: Quarry 운영 UI, AI 설계실, 실제 월드맵
 
-Reviewed against: `DESIGN_BRIEF.md`  
-Philosophy: 창작 도구와 운영 관제의 결합  
+Reviewed against: `DESIGN_BRIEF.md`
+
+Philosophy: 창작 도구와 운영 관제의 결합
+
 Date: 2026-08-02
 
 ## Evidence
